@@ -1,6 +1,7 @@
 import 'package:easy_mask/easy_mask.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   runApp(const MyApp());
@@ -34,18 +35,36 @@ class _MyHomePageState extends State<MyHomePage> {
   final lastName = TextEditingController();
   final number = TextEditingController();
 
-  void createNewContact({
-    required String firstName,
-    required String lastName,
-    required String number,
-  }) async {
-    if (await FlutterContacts.requestPermission()) {
-      final newContact = Contact()
-        ..name.first = firstName
-        ..name.last = lastName
-        ..phones = [Phone(number)];
+  Future<bool> verifyContact() async {
+    List<Contact> contacts = await FlutterContacts.getContacts();
+    return contacts.any((contact) {
+      return contact.displayName == '${firstName.text} ${lastName.text}' ||
+          contact.phones == [Phone(number.text)];
+    });
+  }
 
-      await newContact.insert();
+  void createNewContact({
+    required TextEditingController firstName,
+    required TextEditingController lastName,
+    required TextEditingController number,
+  }) async {
+    if (await Permission.contacts.request().isGranted) {
+      if (!(await verifyContact())) {
+        final newContact = Contact()
+          ..name.first = firstName.text
+          ..name.last = lastName.text
+          ..phones = [Phone(number.text)];
+
+        await newContact.insert();
+      } else {
+        showDialog(
+          context: context,
+          builder: (_) => const AlertDialog(
+            title: Text('Atenção'),
+            content: Text('Esse contato já existe'),
+          ),
+        );
+      }
     }
   }
 
@@ -75,16 +94,11 @@ class _MyHomePageState extends State<MyHomePage> {
                 inputFormatters: [TextInputMask(mask: '(99) 9 9999-9999')],
               ),
               TextButton(
-                onPressed: () {
-                  createNewContact(
-                    firstName: firstName.text,
-                    lastName: lastName.text,
-                    number: number.text,
-                  );
-                  firstName.text = '';
-                  lastName.text = '';
-                  number.text = '';
-                },
+                onPressed: () => createNewContact(
+                  firstName: firstName,
+                  lastName: lastName,
+                  number: number,
+                ),
                 child: const Text('Salvar'),
               ),
             ],
