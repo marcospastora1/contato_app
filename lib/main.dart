@@ -56,6 +56,10 @@ class _MyHomePageState extends State<MyHomePage> {
           ..phones = [Phone(number.text)];
 
         await newContact.insert();
+
+        this.firstName.text = '';
+        this.lastName.text = '';
+        this.number.text = '';
       } else {
         showDialog(
           context: context,
